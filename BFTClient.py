@@ -7,6 +7,19 @@ import Server
 import socket
 from io import BytesIO
 
+def connect_to_channel(hostname,port,id):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #print 'socket created'
+    newport = int(port)+int(id)*10
+    #sock.bind(("localhost", newport))
+
+    sock.bind((hostname, newport))  #James.  Replaced localhost with parameter passed in.
+    
+    sock.listen(1)
+    return sock
+
+
 if __name__ == '__main__':
 
     #Server.serverpart()
@@ -39,19 +52,29 @@ if __name__ == '__main__':
         KVClientClass.KVClient.sendRequest(num[i].decode('utf-8').strip()) #+'//:'+processID
 
         #accept from servers, need to record server
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            newport = int(5000) + int(0)
-            sock.bind(("localhost", newport))
-            sock.listen(1)
-            conn, addr = sock.accept()
-            buf = conn.recv(1024)
-            msg = buf.decode('utf-8')
-                    # msg = msg.split('//:')
-            print(msg)
-        except:
-            print('can not receive')
+         # receive and read from server
+        
+        for j in range(4):
+            print(j)     
+            
+        #   设置IP和端口
+            host = socket.gethostname()
+            mySocket = connect_to_channel(host,3333,j)
+            mySocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            tag = True
+            while tag:            
+        #   接收客户端连接
+                print("Waiting for connecting....")
+                
+                try:
+                    client, address = mySocket.accept()
+                except: 
+                    client, address = mySocket.accept()
+                print(client)
+                msg = client.recv(1024)                
+                print 'receive from server',j,':', msg.decode('utf-8')
+                mySocket.close()
+                tag = False
     shutdownJVM()
 
 

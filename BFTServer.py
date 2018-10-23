@@ -29,6 +29,16 @@ def handle_client_connection(sock):
 #I think it is ok to just use this socket function to directly
 #deliver and process the message
 #Need to figure out whether it is true. 
+# connecting to the client
+def connect_to_channel2(hostname,port,id):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    print 'socket created'
+    newport = int(port)+int(id)*10
+    #sock.bind(("localhost", newport))
+    sock.connect((hostname, newport))
+    return sock
+
 def connect_to_channel(hostname,port,id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -66,12 +76,18 @@ def listen_to_channel(sock):
             message = str(msg) + ';' + str(result)
             print(message)
             # send back
-            try:
-                KVClientClass = JPackage("bftsmart.demo.keyvalue")
-                KVClientClass.KVClient.test()
-                KVClientClass.KVClient.passArg((1000, 1, 1))
-                KVClientClass.KVClient.sendRequest(message.decode('utf-8').strip())
-            except:print('can not send back')
+            # send to client
+                #   set ip and port
+            host = socket.gethostname()
+            tag_conn = True
+            while tag_conn:
+                try:
+                    mySocket = connect_to_channel2(host,3333,replicaID)
+                    tag_conn = False
+                except: continue
+            #print(11111)
+                mySocket.send(message.encode())
+                #mySocket.close()
             #client.clientpart(msg, result)
             #resultset.append(msg+'\n'+result)
             #print "We have assigned sequence number ", sequence, " for client ", cid, " and request ", msg
