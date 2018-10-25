@@ -1,4 +1,4 @@
-#import parsingconfig
+import parsingconfig
 from jpype import *
 import sys
 import socket
@@ -18,13 +18,6 @@ def db_exist(db,key):
     except KeyError:
         return False
 
-def handle_client_connection(sock):
-    buf = sock.recv(1024)
-    #reply = decode(buf)
-    sock.send(buf.encode('utf-8'))
-#db.Put('foo','hahhah') #put in
-#print db.Get('foo')    #get back
-
 #Since we deliver message from java module to python module, 
 #I think it is ok to just use this socket function to directly
 #deliver and process the message
@@ -33,7 +26,7 @@ def handle_client_connection(sock):
 def connect_to_channel2(hostname,port,id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    print 'socket created'
+    #print 'socket created'
     newport = int(port)+int(id)*10
     #sock.bind(("localhost", newport))
     sock.connect((hostname, newport))
@@ -56,7 +49,7 @@ def listen_to_channel(sock):
         print "got a message..."
         try:
             buf = conn.recv(1024)
-            print(addr)
+            #print(addr)
             #print buf
             tmp = BytesIO(buf)
             sequence,cid,length = struct.unpack('>iii', tmp.read(12))
@@ -65,15 +58,17 @@ def listen_to_channel(sock):
             print(msg)
             #message.append(msg)
             hash_msg = str(hash(msg))
-            if db_exist(db_temp,hash_msg): result = db_temp.Get(hash_msg)
+            if db_exist(db_final,hash_msg): reuslt = '1' + ';' + db_final.Get(hash_msg)
+            elif db_exist(db_temp,hash_msg): result = '0' + ';' + db_temp.Get(hash_msg)
             else:
                 filename = vector.vector(msg)
             #print logistic_regression.result(filename)
                 result = logistic_regression.result(filename)
                 db_temp.Put(hash_msg, result)
                 db_news.Put(msg, result)
-            print result
-            message = str(msg) + ';' + str(result)
+                result = '0' + ';' + result
+            #print result
+            message = str(msg) + ';'+ str(result)
             print(message)
             # send back
             # send to client
@@ -94,6 +89,10 @@ def listen_to_channel(sock):
             #if msg=="Dummy Test Request":
              #   print "good."
               #  print "We have assigned sequence number ",sequence," for client ",cid, " and request ",msg
+        
+            # invite reviewers to review 
+            
+
         except:
             print "may have got a not well-formatted message" 
             #TODO: Need to figure out why sometimes there are empty or not well-formatted messages
@@ -109,9 +108,11 @@ if __name__ == '__main__':
     replicaID = sys.argv[1]
 
     #TODO: Nedd to handle configuration file to avoid hard-coded host name and port number
-    #(n,f,host,baseport) = parsingconfig.readconfig()
-    print(replicaID)
-    sock = connect_to_channel("localhost",5000,replicaID)
+    configFile = "config.ini"  #Set variable to the name of the config file.
+    (n,f,host,baseport) = parsingconfig.readconfig(configFile)   #Read in the config number of replicas, failures, host, and port number.
+
+    sock = connect_to_channel(host,baseport,replicaID)
+    db_final = leveldb.LevelDB('./finalresult{}'.format(replicaID)) # hash(msg) + result
     db_temp = leveldb.LevelDB('./tempdata{}'.format(replicaID))
     db_news = leveldb.LevelDB('./newsdata{}'.format(replicaID))
 
