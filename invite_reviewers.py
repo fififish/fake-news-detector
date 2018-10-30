@@ -4,75 +4,46 @@
 from jpype import *
 #from ..threshenc.tdh2 import encrypt,decrypt
 import socket
+import random
 
-def connect_to_channel(hostname,port,id,replicaID):
+def connect_to_channel(hostname,port,id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     #print 'socket created'
-    newport = int(port)+int(id)*10 + replicaID
+    newport = int(port)+int(id)
     #sock.bind(("localhost", newport))
-
-    sock.bind((hostname, newport))  #James.  Replaced localhost with parameter passed in.
-    
-    sock.listen(1)
+    sock.connect((hostname, newport))
     return sock
 
 # message dealt with and return results from reviewers
-def result (RN,replicaID):
+def result (msg,RN):
     fn = (RN-1)/3
     msg_lst = []  #directly return back the result
-    #msg_content = ''
-    #msg_label = ''  
     for j in range(RN):
-            #print(j)           
+            #print(j)   #randomly select 4 reviewers from 0-15        
         #   设置IP和端口
-        host = socket.gethostname()
-        mySocket = connect_to_channel(host,4333,j,replicaID)
+        id = random.randint(0,8) # get one reviewer from 0-15
+        host = '127.0.0.1'
+        mySocket = connect_to_channel(host,5555,id)
         mySocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         tag = True
-        while tag:            
+        while tag:  
+            #print msg          
         #   接收客户端连接
-            #print("Waiting for connecting....")
-            try:
-                client, address = mySocket.accept()
-            except: 
-                client, address = mySocket.accept()
-                #print(client)
-            review_result = client.recv(1024)  
-            #print(msg)  
-            #receive_msg = msg.split(';')
+            mySocket.send(msg.encode())
+            review_result = mySocket.recv(1024) 
+            #print 'result from reviewer',j,'is',review_result 
             msg_lst.append(review_result)
-            #msg_content = receive_msg[0]
-            #msg_label = receive_msg[1]
-            #print 'receive from server',j,':', msg.decode('utf-8')
             mySocket.close()
             tag = False
-    #if  msg_label == '1': news_label = 'final'
-    #else: news_label = 'temporary'
     for x in msg_lst: 
         if msg_lst.count(x)>fn+1: 
             #print 'The ',news_label,'result for news verification of ', msg_content, 'is',x
             return x
             break
-def msg_send(msg,replicaID):
-    RN = 4 # total four reviewers for every server
-    classpath = "lib/commons-codec-1.5.jar:lib/core-0.1.4.jar:lib/netty-all-4.1.9.Final.jar:lib/slf4j-api-1.5.8.jar:lib/slf4j-jdk14-1.5.8.jar:bft-smart/bin/BFT-SMaRt.jar"
-    startJVM(getDefaultJVMPath(),"-Djava.class.path=%s"%classpath)
-
-    # you can then access to the basic java functions
-    #java.lang.System.out.println("hello world")
-
-    KVClientClass = JPackage("bftsmart.demo.keyvalue")
-    #KVClientClass.KVClient.test()
-    KVClientClass.KVClient.passArg((replicaID,1,str(1))
-    
-    KVClientClass.KVClient.sendRequest(msg.decode('utf-8').strip()) #+'//:'+processID
-
-    print(result(RN,replicaID))
 if __name__ == '__main__':
         
-    msg_send('I am a good student',0)    
-    shutdownJVM()
+    result('I am a good student, how about you?',4)    
 
 
    

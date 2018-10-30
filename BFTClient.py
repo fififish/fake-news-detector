@@ -3,7 +3,6 @@
 from jpype import *
 #from ..threshenc.tdh2 import encrypt,decrypt
 from socket import *
-import Server
 import socket
 from io import BytesIO
 #import leveldb
@@ -36,7 +35,10 @@ def result (RN):
     for j in range(RN):
             #print(j)           
         #   设置IP和端口
-        host = socket.gethostname()
+        #host = socket.gethostname()
+        #print(host)
+        #host ='130.85.240.1' #'newsverification-VirtualBox'#
+        host = '127.0.0.1'
         mySocket = connect_to_channel(host,3333,j)
         mySocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         tag = True

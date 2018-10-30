@@ -1,7 +1,9 @@
 # coding: utf-8
-# the function of reviewers is similar with Servers and return back a review result to maintain the 
-# final news result table
-#import parsingconfig
+# the function of reviewers to listen news from servers and review them (ML or HI),the result 
+#is used to maintain the final news result table and the server will make them consensus
+# No need BFT-Smart for review side, just sending back result to servers
+
+import parsingconfig
 from jpype import *
 import sys
 import socket
@@ -11,8 +13,8 @@ import vector
 import logistic_regression
 import SVM
 import csv
-import client
 import leveldb
+
 
 def db_exist(db,key):
     try:
@@ -25,22 +27,13 @@ def db_exist(db,key):
 #I think it is ok to just use this socket function to directly
 #deliver and process the message
 #Need to figure out whether it is true. 
-# connecting to the client
-def connect_to_channel2(hostname,port,id,replicaID):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #print 'socket created'
-    newport = int(port)+int(id)*10 + replicaID
-    #sock.bind(("localhost", newport))
-    sock.connect((hostname, newport))
-    return sock
 
-def connect_to_channel(hostname,port,id):
+def connect_to_channel(host,port,id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    print 'socket created'
+    print 'reviewer created'
     newport = int(port)+int(id)
-    sock.bind(("localhost", newport))
+    sock.bind((host, newport))
     sock.listen(1)
     return sock
 
@@ -54,34 +47,43 @@ def listen_to_channel(sock):
             buf = conn.recv(1024)
             #print(addr)
             #print buf
-            tmp = BytesIO(buf)
-            sequence,cid,length = struct.unpack('>iii', tmp.read(12))
-            msg = tmp.read(length)
+            #tmp = BytesIO(buf)
+            #sequence,cid,length = struct.unpack('>iii', tmp.read(12))
+            #msg = tmp.read(length)
+            msg  = buf.decode()
             #msg = msg.split('//:')
-            print(msg)
+            #print(msg)
             #message.append(msg)
             hash_msg = str(hash(msg))
-            if db_exist(review_news,hash_msg): reuslt = review_news.Get(hash_msg)
+            #print(hash_msg)
+            if db_exist(db_mem,hash_msg): 
+                #print(22222,hash_msg)
+                reuslt = db_mem.Get(hash_msg)
+                #print 'get wrong'
+                result = db_mem.Get(hash_msg)
+                #print(result)
             else:
+                #print(111)
                 filename = vector.vector(msg)
-            #print logistic_regression.result(filename)
                 result = logistic_regression.result(filename)
-                review_news.Put(hash_msg, result)
-                review_news.Put(msg, result)          
-            host = socket.gethostname()
+                db_mem.Put(hash_msg, str(result))
+                #print result
+                
             tag_conn = True
             while tag_conn:
                 try:
-                    mySocket = connect_to_channel2(host,4333,replicaID,replicaID)
+                    #print(result)
+                    conn.send(result.encode())
+                   
                     tag_conn = False
                 except: continue
-            #print(11111)
-                mySocket.send(message.encode())
-          
+
         except:
             print "may have got a not well-formatted message" 
             #TODO: Need to figure out why sometimes there are empty or not well-formatted messages
             pass
+        #return result
+
 if __name__ == '__main__':
 
     if len(sys.argv[1:])<1:
@@ -91,29 +93,13 @@ if __name__ == '__main__':
     replicaID = sys.argv[1]
 
     #TODO: Nedd to handle configuration file to avoid hard-coded host name and port number
-    #(n,f,host,baseport) = parsingconfig.readconfig()
-    print(replicaID)
-    sock = connect_to_channel("localhost",50000,replicaID)
-    review_news = leveldb.LevelDB('./reviewnews{}'.format(replicaID))
-
-    classpath = "lib/commons-codec-1.5.jar:lib/core-0.1.4.jar:lib/netty-all-4.1.9.Final.jar:lib/slf4j-api-1.5.8.jar:lib/slf4j-jdk14-1.5.8.jar:bft-smart/bin/BFT-SMaRt.jar"
-    startJVM(getDefaultJVMPath(),"-Djava.class.path=%s"%classpath)
-
-    KVServerClass = JPackage("bftsmart.demo.keyvalue")
-    KVServerClass.KVServer.passArgs((replicaID,"1"))
-    
-    #listen_to_channel(sock)
-    #print(len(message),len(me_result))
+    configFile = "config.ini"  #Set variable to the name of the config file.
+    (n,f,host,baseport) = parsingconfig.readconfig(configFile)   #Read in the config number of replicas, failures, host, and port number.
+    #host = '10.0.2.15'
+    port = int(baseport) + 555 # port = 5555
+    sock = connect_to_channel(host,port,replicaID) # at first, start 15 reviewers for listening
+    db_mem = leveldb.LevelDB('./reviewmemeory{}'.format(replicaID)) 
+    # hash(msg) + result, record reviewers memory
 
     listen_to_channel(sock)
-    #sock.send(message.encode('utf-8'))  # send back
-
-
-
-    #sock.send(result)
-    #print("news verification result of replica", replicaID, "is", result)
-   # print(resultset)
-    #sock.send(resultset[0])
-
-    # and you have to shutdown the VM at the end
-    shutdownJVM()
+  
