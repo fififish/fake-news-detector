@@ -5,6 +5,7 @@ from jpype import *
 #from ..threshenc.tdh2 import encrypt,decrypt
 import socket
 import random
+import BFTReviewer
 
 def connect_to_channel(hostname,port,id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -22,19 +23,14 @@ def result (msg,RN):
     for j in range(RN):
             #print(j)   #randomly select 4 reviewers from 0-15        
         #   设置IP和端口
-        id = random.randint(0,8) # get one reviewer from 0-15
-        host = '127.0.0.1'
-        mySocket = connect_to_channel(host,5555,id)
-        mySocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        id = random.randint(0,1000) # get one reviewer from 0-15 #set the same 4 reviewers, later should use PRF to select 4 
         tag = True
         while tag:  
-            #print msg          
+            print msg,'comes from reviewer request'          
         #   接收客户端连接
-            mySocket.send(msg.encode())
-            review_result = mySocket.recv(1024) 
-            #print 'result from reviewer',j,'is',review_result 
+            review_result = BFTReviewer.reviewer(msg,id) 
+            print 'result from reviewer',j,'is',review_result 
             msg_lst.append(review_result)
-            mySocket.close()
             tag = False
     for x in msg_lst: 
         if msg_lst.count(x)>fn+1: 

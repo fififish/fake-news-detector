@@ -10,12 +10,13 @@ import SVM
 import csv
 import leveldb
 import invite_reviewers
+import invite_reviewers_cp
 
 def db_exist(db,key):
     try:
         db.Get(key)
         return True
-    except KeyError:
+    except:
         return False
 
 #Since we deliver message from java module to python module, 
@@ -55,26 +56,41 @@ def listen_to_channel(sock):
             sequence,cid,length = struct.unpack('>iii', tmp.read(12))
             msg = tmp.read(length)
             #msg = msg.split('//:')
-            print(msg)
-            #message.append(msg)
-            hash_msg = str(hash(msg))
-            if db_exist(db_final,hash_msg): reuslt = '1' + ';' + db_final.Get(hash_msg)
-            elif db_exist(db_temp,hash_msg): 
-                result = '0' + ';' + db_temp.Get(hash_msg)
-                #adopt reviewers to make temp be forever
-                final_label = invite_reviewers.result(msg,4) # adopt 4 reviewers to make the result final
-                db_final.put(hash_msg,final_label)
-                db_temp.Delete(hash_msg)
-            else:
-                filename = vector.vector(msg)
+            #print(msg[0:3],msg[3:])
+            if msg[0:3] == '000': 
+                print('reviewer process')
+                filename = vector.vector(msg[3:])
             #print logistic_regression.result(filename)
                 result = logistic_regression.result(filename)
-                db_temp.Put(hash_msg, result)
-                db_news.Put(msg, result)
                 result = '0' + ';' + result
+                message = str(msg[3:]) + ';'+ str(result)
+                reviewer_requirement = 0
+            else: # client
+                #message.append(msg)
+                reviewer_requirement  = 0
+                hash_msg = str(hash(msg))
+                if db_exist(db_final,hash_msg): 
+                    label = db_final.Get(hash_msg)                
+                    result = '1' + ';' +label
+                #print(result)
+                elif db_exist(db_temp,hash_msg):
+                    print('temp') 
+                    result = '0' + ';' + db_temp.Get(hash_msg)
+                #adopt reviewers to make temp be forever
+                # can be put to improve accuracy
+                    reviewer_requirement = 1
+                else:
+                    print('verify')
+                    filename = vector.vector(msg)
+            #print logistic_regression.result(filename)
+                    result = logistic_regression.result(filename)
+                    db_temp.Put(hash_msg, result)
+                    db_news.Put(msg, result)
+                    result = '0' + ';' + result
+                    reviewer_requirement = 1
             #print result
-            message = str(msg) + ';'+ str(result)
-            print(message)
+                message = str(msg) + ';'+ str(result)
+                print(message)
             # send back
             # send to client
                 #   set ip and port
@@ -97,8 +113,13 @@ def listen_to_channel(sock):
              #   print "good."
               #  print "We have assigned sequence number ",sequence," for client ",cid, " and request ",msg
         
-            # invite reviewers to review 
-            
+            # invite reviewers to review after finish the temporary process
+            print reviewer_requirement
+            if reviewer_requirement ==1:
+                final_label = invite_reviewers_cp.result(msg,4) # adopt 4 reviewers to make the result final
+                print final_label
+                db_final.Put(hash_msg,final_label)
+                db_temp.Delete(hash_msg) # it seems to be wrong
 
         except:
             print "may have got a not well-formatted message" 
@@ -118,7 +139,9 @@ if __name__ == '__main__':
     configFile = "config.ini"  #Set variable to the name of the config file.
     (n,f,host,baseport) = parsingconfig.readconfig(configFile)   #Read in the config number of replicas, failures, host, and port number.
     #host = '10.0.2.15'
+
     sock = connect_to_channel(host,baseport,replicaID)
+
     db_final = leveldb.LevelDB('./finalresult{}'.format(replicaID)) # hash(msg) + result
     db_temp = leveldb.LevelDB('./tempdata{}'.format(replicaID))
     db_news = leveldb.LevelDB('./newsdata{}'.format(replicaID))
@@ -128,19 +151,8 @@ if __name__ == '__main__':
 
     KVServerClass = JPackage("bftsmart.demo.keyvalue")
     KVServerClass.KVServer.passArgs((replicaID,"1"))
-    
-    #listen_to_channel(sock)
-    #print(len(message),len(me_result))
 
     listen_to_channel(sock)
-    #sock.send(message.encode('utf-8'))  # send back
-
-
-
-    #sock.send(result)
-    #print("news verification result of replica", replicaID, "is", result)
-   # print(resultset)
-    #sock.send(resultset[0])
 
     # and you have to shutdown the VM at the end
     shutdownJVM()

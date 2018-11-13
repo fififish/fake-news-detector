@@ -14,7 +14,7 @@ import logistic_regression
 import SVM
 import csv
 import leveldb
-
+import BFTReviewer
 
 def db_exist(db,key):
     try:
@@ -67,7 +67,8 @@ def listen_to_channel(sock):
                 filename = vector.vector(msg)
                 result = logistic_regression.result(filename)
                 db_mem.Put(hash_msg, str(result))
-                #print result
+                print result
+                #result = BFTReviewer.reviewer(msg,4)
                 
             tag_conn = True
             while tag_conn:
@@ -87,7 +88,7 @@ def listen_to_channel(sock):
 if __name__ == '__main__':
 
     if len(sys.argv[1:])<1:
-        print "Use: python BFTServer.py <ReplicaID>"
+        print "Use: python BFTServer.py <ReviewerID>"
         exit()
 
     replicaID = sys.argv[1]
@@ -100,6 +101,12 @@ if __name__ == '__main__':
     sock = connect_to_channel(host,port,replicaID) # at first, start 15 reviewers for listening
     db_mem = leveldb.LevelDB('./reviewmemeory{}'.format(replicaID)) 
     # hash(msg) + result, record reviewers memory
+    
+    #classpath = "lib/commons-codec-1.5.jar:lib/core-0.1.4.jar:lib/netty-all-4.1.9.Final.jar:lib/slf4j-api-1.5.8.jar:lib/slf4j-jdk14-1.5.8.jar:bft-smart/bin/BFT-SMaRt.jar"
+    #startJVM(getDefaultJVMPath(),"-Djava.class.path=%s"%classpath)
 
+    #KVServerClass = JPackage("bftsmart.demo.keyvalue")
+    #KVServerClass.KVServer_reviewer.passArgs((replicaID,"1"))
     listen_to_channel(sock)
+    shutdownJVM()
   

@@ -92,7 +92,8 @@ if __name__ == '__main__':
 
     # you can then access to the basic java functions
     #java.lang.System.out.println("hello world")
-
+    processID = '0' + processID 
+    # '0' means request comes from client and '1' means request comes from reviewers
     KVClientClass = JPackage("bftsmart.demo.keyvalue")
     #KVClientClass.KVClient.test()
     KVClientClass.KVClient.passArg((processID,increment,str(len(num))))
